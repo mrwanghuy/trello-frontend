@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
 import type { Workspace } from '@/types/api';
@@ -31,6 +31,7 @@ export default function DashboardPage() {
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState<Workspace | null>(null);
 
   const { data: workspaces, isLoading } = useQuery<Workspace[]>({
     queryKey: ['workspaces'],
@@ -69,14 +70,30 @@ export default function DashboardPage() {
     },
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await api.delete(`/workspaces/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['workspaces'] });
+      toast.success('Đã xoá workspace');
+      setDeleteTarget(null);
+    },
+    onError: () => {
+      toast.error('Xoá workspace thất bại');
+    },
+  });
+
   return (
     <div className="p-8 max-w-6xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-semibold">Workspaces</h1>
-          <p className="text-sm text-muted-foreground">
-            Tất cả không gian làm việc của bạn
-          </p>
+          {!isLoading && (
+            <p className="text-sm text-muted-foreground">
+              {workspaces?.length ?? 0} workspace
+            </p>
+          )}
         </div>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
@@ -117,8 +134,11 @@ export default function DashboardPage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {workspaces?.map((ws) => (
-          <Link key={ws.id} href={`/w/${ws.id}`}>
-            <Card className="hover:shadow-md transition-shadow cursor-pointer h-full">
+          <div key={ws.id} className="relative">
+            <Link href={`/w/${ws.id}`} className="absolute inset-0 z-0">
+              <span className="sr-only">Mở {ws.name}</span>
+            </Link>
+            <Card className="hover:shadow-md transition-shadow cursor-pointer h-full pointer-events-none">
               <CardHeader>
                 <CardTitle>{ws.name}</CardTitle>
                 <CardDescription>/{ws.slug}</CardDescription>
@@ -127,17 +147,63 @@ export default function DashboardPage() {
                 <p className="text-sm text-muted-foreground">Mở workspace</p>
               </CardContent>
             </Card>
-          </Link>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute top-2 right-2 z-10 h-8 w-8"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setDeleteTarget(ws);
+              }}
+              aria-label={`Xoá ${ws.name}`}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
         ))}
       </div>
 
       {!isLoading && !workspaces?.length && (
-        <div className="text-center py-12">
+        <div className="text-center py-12 space-y-4">
           <p className="text-muted-foreground">
             Bạn chưa có workspace nào. Tạo workspace đầu tiên để bắt đầu.
           </p>
+          <Button onClick={() => setOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            New workspace
+          </Button>
         </div>
       )}
+
+      <Dialog
+        open={!!deleteTarget}
+        onOpenChange={(o) => !o && setDeleteTarget(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Xoá workspace</DialogTitle>
+            <DialogDescription>
+              Xoá workspace «{deleteTarget?.name}»? Tất cả board và card sẽ bị
+              xoá theo.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>
+              Huỷ
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() =>
+                deleteTarget && deleteMutation.mutate(deleteTarget.id)
+              }
+              disabled={deleteMutation.isPending}
+            >
+              {deleteMutation.isPending ? 'Đang xoá...' : 'Xoá'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

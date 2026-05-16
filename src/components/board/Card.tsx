@@ -7,9 +7,10 @@ import type { Card as CardType } from '@/types/api';
 interface CardProps {
   card: CardType;
   index: number;
+  onCardClick?: (cardId: string) => void;
 }
 
-export function Card({ card, index }: CardProps) {
+export function Card({ card, index, onCardClick }: CardProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({
       id: card.id,
@@ -28,7 +29,11 @@ export function Card({ card, index }: CardProps) {
       style={style}
       {...attributes}
       {...listeners}
-      className="bg-card rounded-md shadow-sm border border-border px-3 py-2 text-sm cursor-grab active:cursor-grabbing hover:border-primary/50"
+      onClick={() => {
+        if (transform || isDragging) return;
+        onCardClick?.(card.id);
+      }}
+      className="bg-card rounded-md shadow-sm border border-border px-3 py-2 text-sm cursor-pointer hover:border-primary/50"
     >
       {card.title}
     </div>

@@ -1,18 +1,20 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
 import type { BoardWithLists } from '@/types/api';
 import { Board } from '@/components/board/Board';
+import { CardDialog } from '@/components/board/CardDialog';
 import { midpoint, nextAppendPosition } from '@/lib/positions';
 
 export default function BoardPage() {
   const params = useParams<{ wsId: string; boardId: string }>();
   const boardId = params.boardId;
   const queryClient = useQueryClient();
+  const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
 
   const { data: board, isLoading } = useQuery<BoardWithLists>({
     queryKey: ['board', boardId],
@@ -39,6 +41,58 @@ export default function BoardPage() {
       queryClient.invalidateQueries({ queryKey: ['board', boardId] });
     },
   });
+
+  const invalidateBoard = () => {
+    queryClient.invalidateQueries({ queryKey: ['board', boardId] });
+  };
+
+  const createCardMutation = useMutation({
+    mutationFn: async (payload: { listId: string; title: string }) => {
+      await api.post('/cards', payload);
+    },
+    onSuccess: () => toast.success('Đã thêm card'),
+    onError: () => toast.error('Thêm card thất bại'),
+    onSettled: invalidateBoard,
+  });
+
+  const createListMutation = useMutation({
+    mutationFn: async (payload: { title: string }) => {
+      await api.post('/lists', { boardId, title: payload.title });
+    },
+    onSuccess: () => toast.success('Đã thêm list'),
+    onError: () => toast.error('Thêm list thất bại'),
+    onSettled: invalidateBoard,
+  });
+
+  const updateListTitleMutation = useMutation({
+    mutationFn: async (payload: { listId: string; title: string }) => {
+      await api.patch(`/lists/${payload.listId}`, { title: payload.title });
+    },
+    onSuccess: () => toast.success('Đã cập nhật list'),
+    onError: () => toast.error('Cập nhật list thất bại'),
+    onSettled: invalidateBoard,
+  });
+
+  const deleteListMutation = useMutation({
+    mutationFn: async (listId: string) => {
+      await api.delete(`/lists/${listId}`);
+    },
+    onSuccess: () => toast.success('Đã xoá list'),
+    onError: () => toast.error('Xoá list thất bại'),
+    onSettled: invalidateBoard,
+  });
+
+  const deleteCardMutation = useMutation({
+    mutationFn: async (cardId: string) => {
+      await api.delete(`/cards/${cardId}`);
+    },
+    onSuccess: () => toast.success('Đã xoá card'),
+    onError: () => toast.error('Xoá card thất bại'),
+    onSettled: invalidateBoard,
+  });
+
+  // Reference so the var isn't flagged as unused; this mutation is exposed for future inline delete.
+  void deleteCardMutation;
 
   const handleCardMove = (cardId: string, newListId: string, newIndex: number) => {
     if (!board) return;
@@ -82,6 +136,22 @@ export default function BoardPage() {
     moveMutation.mutate({ cardId, listId: newListId, position: newPosition });
   };
 
+  const handleAddCard = async (listId: string, title: string) => {
+    await createCardMutation.mutateAsync({ listId, title });
+  };
+
+  const handleAddList = async (title: string) => {
+    await createListMutation.mutateAsync({ title });
+  };
+
+  const handleUpdateListTitle = async (listId: string, title: string) => {
+    await updateListTitleMutation.mutateAsync({ listId, title });
+  };
+
+  const handleDeleteList = (listId: string) => {
+    deleteListMutation.mutate(listId);
+  };
+
   const orderedBoard = useMemo<BoardWithLists | undefined>(() => {
     if (!board) return undefined;
     return {
@@ -108,8 +178,20 @@ export default function BoardPage() {
         <h1 className="text-lg font-semibold">{orderedBoard.title}</h1>
       </header>
       <div className="flex-1 overflow-x-auto">
-        <Board board={orderedBoard} onCardMove={handleCardMove} />
+        <Board
+          board={orderedBoard}
+          onCardMove={handleCardMove}
+          onCardClick={(id) => setSelectedCardId(id)}
+          onAddCard={handleAddCard}
+          onAddList={handleAddList}
+          onUpdateListTitle={handleUpdateListTitle}
+          onDeleteList={handleDeleteList}
+        />
       </div>
+      <CardDialog
+        cardId={selectedCardId}
+        onClose={() => setSelectedCardId(null)}
+      />
     </div>
   );
 }

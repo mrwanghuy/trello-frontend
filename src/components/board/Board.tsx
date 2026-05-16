@@ -13,10 +13,16 @@ import {
 } from '@dnd-kit/sortable';
 import type { BoardWithLists } from '@/types/api';
 import { List } from './List';
+import { AddList } from './AddList';
 
 interface BoardProps {
   board: BoardWithLists;
   onCardMove: (cardId: string, newListId: string, newIndex: number) => void;
+  onCardClick?: (cardId: string) => void;
+  onAddCard?: (listId: string, title: string) => Promise<void>;
+  onAddList?: (title: string) => Promise<void>;
+  onUpdateListTitle?: (listId: string, title: string) => Promise<void> | void;
+  onDeleteList?: (listId: string) => void;
 }
 
 interface CardSortableData {
@@ -32,7 +38,15 @@ interface ListSortableData {
 
 type SortableData = CardSortableData | ListSortableData;
 
-export function Board({ board, onCardMove }: BoardProps) {
+export function Board({
+  board,
+  onCardMove,
+  onCardClick,
+  onAddCard,
+  onAddList,
+  onUpdateListTitle,
+  onDeleteList,
+}: BoardProps) {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
   );
@@ -78,9 +92,17 @@ export function Board({ board, onCardMove }: BoardProps) {
           strategy={horizontalListSortingStrategy}
         >
           {board.lists.map((list) => (
-            <List key={list.id} list={list} />
+            <List
+              key={list.id}
+              list={list}
+              onCardClick={onCardClick}
+              onAddCard={onAddCard}
+              onUpdateListTitle={onUpdateListTitle}
+              onDeleteList={onDeleteList}
+            />
           ))}
         </SortableContext>
+        {onAddList ? <AddList onAdd={onAddList} /> : null}
       </div>
     </DndContext>
   );
