@@ -8,6 +8,7 @@ import { api } from '@/lib/api';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -141,10 +142,9 @@ export function CardDialog({ cardId, onClose }: CardDialogProps): JSX.Element | 
     onSuccess: () => {
       toast.success('Đã xoá card');
       onClose();
+      queryClient.removeQueries({ queryKey: ['card', cardId] });
       queryClient.invalidateQueries({
-        predicate: (q) =>
-          Array.isArray(q.queryKey) &&
-          (q.queryKey[0] === 'board' || q.queryKey[0] === 'card'),
+        predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === 'board',
       });
     },
     onError: () => {
@@ -195,6 +195,9 @@ export function CardDialog({ cardId, onClose }: CardDialogProps): JSX.Element | 
       >
         <DialogHeader>
           <DialogTitle className="sr-only">Chi tiết card</DialogTitle>
+          <DialogDescription className="sr-only">
+            Xem và chỉnh sửa nội dung card, bình luận, và xoá card.
+          </DialogDescription>
         </DialogHeader>
 
         {cardQuery.isLoading || !card ? (

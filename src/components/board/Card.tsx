@@ -29,8 +29,9 @@ export function Card({ card, index, onCardClick }: CardProps) {
       style={style}
       {...attributes}
       {...listeners}
-      onClick={() => {
+      onClick={(e) => {
         if (transform || isDragging) return;
+        e.currentTarget.blur();
         onCardClick?.(card.id);
       }}
       className="bg-card rounded-md shadow-sm border border-border px-3 py-2 text-sm cursor-pointer hover:border-primary/50"
