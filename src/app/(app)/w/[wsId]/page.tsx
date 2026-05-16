@@ -6,66 +6,64 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
-import type { Workspace } from '@/types/api';
+import type { Board, Workspace } from '@/types/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
 
-export default function DashboardPage() {
+export default function WorkspacePage({ params }: { params: { wsId: string } }) {
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
-  const [name, setName] = useState('');
+  const [title, setTitle] = useState('');
 
-  const { data: workspaces, isLoading } = useQuery<Workspace[]>({
-    queryKey: ['workspaces'],
+  const { data: workspace } = useQuery<Workspace>({
+    queryKey: ['workspace', params.wsId],
     queryFn: async () => {
-      const { data } = await api.get<Workspace[]>('/workspaces');
+      const { data } = await api.get<Workspace>(`/workspaces/${params.wsId}`);
       return data;
     },
   });
 
-  const slugify = (s: string) =>
-    s
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[̀-ͯ]/g, '')
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '')
-      .slice(0, 60);
+  const { data: boards, isLoading } = useQuery<Board[]>({
+    queryKey: ['boards', params.wsId],
+    queryFn: async () => {
+      const { data } = await api.get<Board[]>('/boards', {
+        params: { workspaceId: params.wsId },
+      });
+      return data;
+    },
+  });
 
   const createMutation = useMutation({
-    mutationFn: async (payload: { name: string }) => {
-      const slug = slugify(payload.name) || `ws-${Date.now()}`;
-      const { data } = await api.post<Workspace>('/workspaces', {
-        name: payload.name,
-        slug,
+    mutationFn: async (payload: { title: string }) => {
+      const { data } = await api.post<Board>('/boards', {
+        workspaceId: params.wsId,
+        title: payload.title,
       });
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['workspaces'] });
-      toast.success('Đã tạo workspace');
+      queryClient.invalidateQueries({ queryKey: ['boards', params.wsId] });
+      toast.success('Đã tạo board');
       setOpen(false);
-      setName('');
+      setTitle('');
     },
     onError: () => {
-      toast.error('Tạo workspace thất bại');
+      toast.error('Tạo board thất bại');
     },
   });
 
@@ -73,38 +71,37 @@ export default function DashboardPage() {
     <div className="p-8 max-w-6xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-semibold">Workspaces</h1>
+          <h1 className="text-2xl font-semibold">
+            {workspace?.name ?? 'Workspace'}
+          </h1>
           <p className="text-sm text-muted-foreground">
-            Tất cả không gian làm việc của bạn
+            Tất cả board trong workspace này
           </p>
         </div>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
             <Button>
               <Plus className="h-4 w-4 mr-2" />
-              New workspace
+              New board
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Tạo workspace mới</DialogTitle>
-              <DialogDescription>
-                Workspace là nơi chứa các board của nhóm bạn.
-              </DialogDescription>
+              <DialogTitle>Tạo board mới</DialogTitle>
             </DialogHeader>
             <div className="space-y-2">
-              <Label htmlFor="ws-name">Tên workspace</Label>
+              <Label htmlFor="board-title">Tên board</Label>
               <Input
-                id="ws-name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Vd: Marketing"
+                id="board-title"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="Vd: Sprint Q1"
               />
             </div>
             <DialogFooter>
               <Button
-                onClick={() => createMutation.mutate({ name })}
-                disabled={!name.trim() || createMutation.isPending}
+                onClick={() => createMutation.mutate({ title })}
+                disabled={!title.trim() || createMutation.isPending}
               >
                 {createMutation.isPending ? 'Đang tạo...' : 'Tạo'}
               </Button>
@@ -116,25 +113,26 @@ export default function DashboardPage() {
       {isLoading && <p className="text-muted-foreground">Đang tải...</p>}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {workspaces?.map((ws) => (
-          <Link key={ws.id} href={`/w/${ws.id}`}>
+        {boards?.map((b) => (
+          <Link key={b.id} href={`/w/${params.wsId}/b/${b.id}`}>
             <Card className="hover:shadow-md transition-shadow cursor-pointer h-full">
               <CardHeader>
-                <CardTitle>{ws.name}</CardTitle>
-                <CardDescription>/{ws.slug}</CardDescription>
+                <CardTitle>{b.title}</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-muted-foreground">Mở workspace</p>
+                <p className="text-sm text-muted-foreground">
+                  Mở để xem board
+                </p>
               </CardContent>
             </Card>
           </Link>
         ))}
       </div>
 
-      {!isLoading && !workspaces?.length && (
+      {!isLoading && !boards?.length && (
         <div className="text-center py-12">
           <p className="text-muted-foreground">
-            Bạn chưa có workspace nào. Tạo workspace đầu tiên để bắt đầu.
+            Workspace này chưa có board nào. Tạo board đầu tiên để bắt đầu.
           </p>
         </div>
       )}

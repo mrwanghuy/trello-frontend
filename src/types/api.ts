@@ -8,8 +8,8 @@ export interface User {
 export interface Workspace {
   id: string;
   name: string;
-  description?: string | null;
-  boardsCount?: number;
+  slug: string;
+  ownerId?: string;
   createdAt?: string;
 }
 
@@ -17,7 +17,8 @@ export interface Board {
   id: string;
   workspaceId: string;
   title: string;
-  description?: string | null;
+  background?: string | null;
+  visibility?: 'PRIVATE' | 'WORKSPACE' | 'PUBLIC';
   createdAt?: string;
 }
 
