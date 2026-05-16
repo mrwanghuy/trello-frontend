@@ -159,6 +159,9 @@ export default function WorkspacePage({ params }: { params: { wsId: string } }) 
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Tạo board mới</DialogTitle>
+              <DialogDescription>
+                Board chứa các list và card cho dự án của bạn.
+              </DialogDescription>
             </DialogHeader>
             <div className="space-y-2">
               <Label htmlFor="board-title">Tên board</Label>
@@ -249,6 +252,9 @@ export default function WorkspacePage({ params }: { params: { wsId: string } }) 
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Sửa workspace</DialogTitle>
+            <DialogDescription>
+              Đổi tên hiển thị cho workspace này. Slug giữ nguyên.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
             <Label htmlFor="ws-edit-name">Tên workspace</Label>
