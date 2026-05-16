@@ -88,6 +88,8 @@ export function CardDialog({ cardId, onClose }: CardDialogProps): JSX.Element | 
   const [title, setTitle] = React.useState<string>('');
   const [description, setDescription] = React.useState<string>('');
   const [newComment, setNewComment] = React.useState<string>('');
+  const titleRef = React.useRef<HTMLInputElement>(null);
+  const focusedCardRef = React.useRef<string | null>(null);
 
   const card = cardQuery.data;
 
@@ -97,6 +99,17 @@ export function CardDialog({ cardId, onClose }: CardDialogProps): JSX.Element | 
       setDescription(card.description ?? '');
     }
   }, [card?.id, card?.title, card?.description]);
+
+  React.useEffect(() => {
+    if (!cardId) {
+      focusedCardRef.current = null;
+      return;
+    }
+    if (card && titleRef.current && focusedCardRef.current !== card.id) {
+      titleRef.current.focus();
+      focusedCardRef.current = card.id;
+    }
+  }, [cardId, card]);
 
   const updateMutation = useMutation({
     mutationFn: (payload: UpdateCardPayload) =>
@@ -176,7 +189,10 @@ export function CardDialog({ cardId, onClose }: CardDialogProps): JSX.Element | 
 
   return (
     <Dialog open={!!cardId} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent
+        className="max-w-2xl max-h-[90vh] overflow-y-auto"
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle className="sr-only">Chi tiết card</DialogTitle>
         </DialogHeader>
@@ -186,6 +202,7 @@ export function CardDialog({ cardId, onClose }: CardDialogProps): JSX.Element | 
         ) : (
           <div className="space-y-6">
             <Input
+              ref={titleRef}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               onBlur={handleTitleBlur}
